@@ -4,29 +4,39 @@ const path = require('path');
 const folderPath = path.join(__dirname, 'files');
 const copyFolderPath = path.join(__dirname, 'files-copy');
 
-fs.promises
-  .mkdir(copyFolderPath, { recursive: true })
-  .then(() => {
-    console.log('Folder created successfully');
-    return fs.promises.readdir(folderPath, { withFileTypes: true });
-  })
-  .then((files) => {
-    files.forEach((file) => {
+async function clearFolder(folder) {
+  try {
+    const files = await fs.promises.readdir(folder);
+    for (const file of files) {
+      const filePath = path.join(folder, file);
+      await fs.promises.unlink(filePath);
+    }
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.error('Error clearing folder:', err.message);
+    }
+  }
+}
+
+async function copyFiles() {
+  try {
+    await fs.promises.mkdir(copyFolderPath, { recursive: true });
+    await clearFolder(copyFolderPath);
+    const files = await fs.promises.readdir(folderPath, {
+      withFileTypes: true,
+    });
+    for (const file of files) {
       const srcPath = path.join(folderPath, file.name);
       const destPath = path.join(copyFolderPath, file.name);
-
-      fs.promises
-        .copyFile(srcPath, destPath)
-        .then(() => console.log(`Copied: ${file.name}`))
-        .catch((err) =>
-          console.error(`Error copying file ${file.name}:`, err.message),
-        );
-
       if (file.isFile()) {
-        console.log('File:', file.name);
+        await fs.promises.copyFile(srcPath, destPath);
+        console.log(`Copied: ${file.name}`);
       }
-    });
-  })
-  .catch((err) => {
-    console.error('Error reading the folder:', err.message);
-  });
+    }
+    console.log('Copy completed successfully!');
+  } catch (err) {
+    console.error('Error during copying:', err.message);
+  }
+}
+
+copyFiles();
